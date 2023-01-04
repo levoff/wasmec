@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <title>C WASM TEST 4</title>
+
+    <meta http-equiv="cache-control" content="no-cache" />
+    <!-- auto update by sending consecutive HEAD requests to the server. ADDITIONAL LIB -->
+    <script type="text/javascript" src="https://livejs.com/live.js"></script>
+
+
+    <script type="module">
+      async function init() {
+
+      function make_environment(...envs) {
+          return new Proxy(envs, {
+              get(target, prop, receiver) {
+                  for (let env of envs) {
+                      if (env.hasOwnProperty(prop)) {
+                          return env[prop];
+                      }
+                  }
+                  return (...args) => {console.error("NOT IMPLEMENTED: "+prop, args)}
+              }
+          });
+      }
+
+      ///// Wasm instantiation
+      const width = 800;
+      const height = 600;
+      const { instance } = await WebAssembly.instantiateStreaming(fetch("./cmodule.wasm"),{
+        "env": make_environment ({
+              "atan2": Math.atan2,
+              "cosf": Math.cos,
+              "sinf": Math.sin,
+              "sqrt": Math.sqrt,
+              "abs": Math.abs,
+              "fabs": Math.fabs,
+              "round": Math.round,
+              "floor": Math.floor
+              })
+      }); 
+
+      ///// Get canvas and context
+      const canvas = document.getElementById("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext( '2d', { alpha: false, antialias: false, depth: false });
+
+      ///// Prepare the data
+      const pointer = instance.exports.init(width, height); //const buffer_address = instance.exports.BUFFER.value; 
+      const data = new Uint8ClampedArray( instance.exports.memory.buffer, pointer, 4 * width * height)
+      const image = new ImageData( data, width, height);
+
+      ///// Render
+      const render = (timestamp) => {
+        instance.exports.render(timestamp);
+        ctx.putImageData(image, 0, 0);
+        window.requestAnimationFrame(render);
+      };
+      window.requestAnimationFrame(render);
+    }
+    init();
+    </script>
+
+  </head>
+
+  <body>
+    <canvas id="canvas"></canvas>
+  </body>
+
+</html>

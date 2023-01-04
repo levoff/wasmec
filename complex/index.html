@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+<head>
+    <title>C->WASM->CANVAS</title>
+    <meta charset="utf-8">
+    <meta http-equiv="cache-control" content="no-cache" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="This exmaple demonstrated wasm integration and interaction with JS and mouse events to draw on canvas.">
+    <!-- <meta http-equiv="refresh" content="3"> -->
+      <!-- auto update when in focus -->
+    <!-- <script> window.addEventListener('focus', ()=>{document.location = document.location})</script> -->
+      <!-- auto update by sending consecutive HEAD requests to the server. ADDITIONAL LIB -->
+    <script type="text/javascript" src="https://livejs.com/live.js"></script>
+    <style>
+      .relative {
+          padding: 10px;
+          position: relative;
+          background-color: #fff;
+          margin: 10px;
+      }
+      .button {
+          display: inline-block;
+          width: 120px;
+          height: 30px;
+          text-align: center;
+          border: gray;
+          background-color: #E8562A;
+          color: #fff;
+          cursor: pointer;
+          font-weight: bold;
+          margin: 10px;
+      }
+      .button:hover {background-color:#852f15; transition: 0.7s; }
+      .button:disabled {background-color: #786762; color: #917c76; }
+      body{ background-color: ivory; padding:0; }
+      /*#canvas{border:1px solid red;}*/
+    </style>
+
+    <script type="module">
+      async function init() {
+
+        ///// Wasm instantiation
+        const width = 640;
+        const height = 480;
+        const { instance } = await WebAssembly.instantiateStreaming(fetch("./cmodule.wasm")); 
+
+        ///// Get canvas and context
+        const canvas = document.getElementById("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext( '2d', { alpha: false, antialias: false, depth: false });
+        
+        ///// Prepare the data
+        const pointer = instance.exports.init(width, height); //const buffer_address = instance.exports.BUFFER.value; 
+        const data = new Uint8ClampedArray( instance.exports.memory.buffer, pointer, 4 * width * height)
+        const image = new ImageData( data, width, height);
+        
+        var mouse_x = width/2;
+        var mouse_y = height/2;
+        var drag = false;
+        var timestamp_ms = 0;
+        var opcode = 0;
+
+        ///// Render loop
+        const render = (timestamp) => {
+          timestamp_ms = timestamp;
+          if (opcode == 5) {instance.exports.render(timestamp, -1, -1, opcode);}
+          ctx.putImageData(image, 0, 0);
+          window.requestAnimationFrame(render);
+        };
+        window.requestAnimationFrame(render);
+
+
+        /*  Mouse Events
+        *  - mousedown / mouseup
+        *  - mouseover / mouseout
+        *  - mousemove
+        *  - click
+        *  - dblclick
+        */
+        canvas.addEventListener('mousemove', event => {
+            if (drag) {
+              let bound = canvas.getBoundingClientRect();
+              mouse_x = event.clientX - bound.left - canvas.clientLeft;
+              mouse_y = event.clientY - bound.top - canvas.clientTop;
+              instance.exports.render(timestamp_ms, mouse_x, mouse_y, opcode);
+            }
+          });
+        canvas.addEventListener('mousedown', event => {
+            if(event.which == 1) // left click
+            {
+              drag = true;
+              let bound = canvas.getBoundingClientRect();
+              instance.exports.render(timestamp_ms, -1, -1, opcode);
+            }
+            if(event.which == 2) // middle click
+            {
+                  alert("Middle button clicked.");
+            }
+            if(event.which == 3) // right click
+            {
+                  alert("Context menu not implemented. yet...");
+            }
+          });
+        canvas.addEventListener('mouseup', event => {
+            drag = false;
+            mouse_x = -1;
+            mouse_y = -1;
+            instance.exports.render(timestamp_ms, mouse_x, mouse_y, 0);
+          });
+        canvas.addEventListener('mouseout', event => {
+            drag = false;
+            mouse_x = -1;
+            mouse_y = -1;
+            instance.exports.render(timestamp_ms, mouse_x, mouse_y, 0);
+          });
+
+        // Tool buttons handlers
+        const buttonClear = document.getElementById("buttonClear");
+        buttonClear.addEventListener('click', event => {
+            drag = false;
+            mouse_x = -1;
+            mouse_y = -1;
+            instance.exports.render(0, mouse_x, mouse_y, 1);
+        });
+        const buttonFill = document.getElementById("buttonFill");
+        buttonFill.addEventListener('click', event => {
+            drag = false;
+            mouse_x = -1;
+            mouse_y = -1;
+            instance.exports.render(timestamp_ms, mouse_x, mouse_y, 2);
+        });
+
+        // Select example application
+        const buttonDraw = document.getElementById("buttonDraw");
+        buttonDraw.addEventListener('click', event => {
+            opcode = 3;
+            instance.exports.render(timestamp_ms, -1, -1, 1);
+            instance.exports.render(timestamp_ms, mouse_x, mouse_y, opcode);
+        });
+        const buttonBall = document.getElementById("buttonBall");
+        buttonBall.addEventListener('click', event => {
+            opcode = 4;
+            instance.exports.render(timestamp_ms, width/2, height/2, opcode);
+            instance.exports.render(timestamp_ms, mouse_x, mouse_y, opcode);
+        });
+        const buttonSpiral = document.getElementById("buttonSpiral");
+        buttonSpiral.addEventListener('click', event => {
+            opcode = 5;
+            instance.exports.render(timestamp_ms, mouse_x, mouse_y, opcode);
+        });
+
+      }
+      init();
+    </script>
+</head>
+
+<body>
+  
+    <div style="text-align:center;">
+        <h2>WASM graphics</h2>
+        <p>
+          All the graphics is generated/rendered by wasm code and placed on canvas by JavaScript.<br>
+          Wasm code is generated from C sources using Clang/LLVM.
+        </p>
+        <button class="button" id="buttonDraw">Draw example</button>
+        <button class="button" id="buttonBall">Ball example</button>
+        <button class="button" id="buttonSpiral">Spiral example</button>
+    </div>
+    <div style="text-align:center;">
+        <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+    </div>
+    <div id="toolsdiv" style="text-align:center;">
+        <button class="button" id="buttonClear" style="background-color:#555555;">Clear</button>
+        <button class="button" id="buttonFill" style="background-color:#555588;">Fill</button>
+    </div>
+</body>
+
+</html>

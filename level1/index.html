@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>C WASM TEST</title>
+    <script type="module">
+		async function init() {
+			const width = 600;
+			const height = 600;
+
+			const { instance } = await WebAssembly.instantiateStreaming(fetch("./cmodule.wasm")); 
+
+			const canvas = document.getElementById("canvas");
+			canvas.width = width;
+			canvas.height = height;
+
+			const buffer_address = instance.exports.BUFFER.value; 
+			const image = new ImageData( new Uint8ClampedArray( instance.exports.memory.buffer, buffer_address, 4 * width * height,), width,);
+
+			const ctx = canvas.getContext("2d");
+			instance.exports.render(); 
+			ctx.putImageData(image, 0, 0);
+		}
+		init();
+	</script>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <!-- <script src="index.js"></script> -->
+</body>
+
+</html>
