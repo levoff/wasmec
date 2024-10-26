@@ -10,6 +10,37 @@
 #define COEFF_1 0.7853981633974483
 #define COEFF_2 2.356194490192345
 
+#include <stdint.h>
+
+int16_t fast_sqrt_chatGPT_fixed(int32_t number) {
+    int32_t i;
+    int32_t x2, y;
+    const int32_t threehalfs = (int32_t)(1.5 * (1 << 15));
+
+    x2 = number >> 1;
+    y = number;
+    i = *(int32_t*) &y;
+    i = 0x5f3759df - (i >> 1);
+    y = *(int32_t*) &i;
+    y = ((threehalfs - (x2 * y)) >> 15) * y;
+    return (int16_t)(1.0 / y * (1 << 15));
+}
+
+
+float fast_sqrt_chatGPT_float(float number) {
+    long i;
+    float x2, y;
+    const float threehalfs = 1.5f;
+
+    x2 = number * 0.5f;
+    y = number;
+    i = *(long*) &y;
+    i = 0x5f3759df - (i >> 1);
+    y = *(float*) &i;
+    y = y * (threehalfs - (x2 * y * y));
+    return 1 / y;
+}
+
 
 unsigned long wasmath_isqrt16f16(unsigned long h) {
   // From SY
@@ -128,6 +159,21 @@ double wasmath_atan2(int y, int x) {
   }
   return y < 0 ? -angle : angle;
 }
+
+
+float wasmath_fast_atan_float(float x) {
+    // Constants
+    const float a0 = 1.6867629106f;
+    const float a1 = -0.4378497304f;
+    const float a2 = 0.0524089524f;
+    const float a3 = -0.0025315845f;
+
+    float x2 = x*x;
+    float result = (a3*x2 + a2)*x2 + a1*x + a0;
+    result *= x;
+    return result;
+}
+
 
 double wasmath_fmod(double a, double b)
 {

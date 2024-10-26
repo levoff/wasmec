@@ -52,4 +52,5 @@
   -https://til.simonwillison.net/webassembly/compile-to-wasm-llvm-macos
   -https://compile.fi/canvas-filled-three-ways-js-webassembly-and-webgl/
   -https://hadean.com/blog/using-wasm-webassembly-c-to-run-in-browser/
+  -https://schellcode.github.io/webassembly-without-emscripten
 
